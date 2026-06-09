@@ -1,41 +1,48 @@
 import json
 import os
-from fastapi import FastAPI
 
-app = FastAPI()
-
-# load data once (IMPORTANT for performance)
-DATA_CACHE = {}
-
-def load_file(type_):
-    if type_ in DATA_CACHE:
-        return DATA_CACHE[type_]
-
-    file_path = os.path.join("Predictions", f"{type_}.json")
-
-    if not os.path.exists(file_path):
-        return None
-
-    with open(file_path, "r") as f:
-        DATA_CACHE[type_] = json.load(f)
-
-    return DATA_CACHE[type_]
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PRED_DIR = os.path.join(BASE_DIR, "Predictions")
 
 
-@app.get("/api/prediction")
-def get_prediction(type: str, name: str):
-    data = load_file(type)
+def handler(request):
+    from urllib.parse import parse_qs
 
-    if not data:
-        return {"error": "type not found"}
+    query = parse_qs(request.query_string.decode())
+    name = query.get("name", [None])[0]
 
-    result = data.get(name)
+    if not name:
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "name is required"})
+        }
 
-    if not result:
-        return {"error": "name not found"}
+    # 🔍 scan all files in Predictions folder
+    for file in os.listdir(PRED_DIR):
+        if not file.endswith(".json"):
+            continue
+
+        file_path = os.path.join(PRED_DIR, file)
+
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+
+            # search inside file
+            if name in data:
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps({
+                        "file": file,
+                        "name": name,
+                        "data": data[name]
+                    })
+                }
+
+        except Exception as e:
+            continue
 
     return {
-        "type": type,
-        "name": name,
-        "data": result
+        "statusCode": 404,
+        "body": json.dumps({"error": "component not found"})
     }
