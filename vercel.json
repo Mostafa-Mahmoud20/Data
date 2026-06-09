@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/prediction.py": {
-      "runtime": "python3.9"
-    }
-  }
-}
