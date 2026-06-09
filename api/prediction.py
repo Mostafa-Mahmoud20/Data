@@ -1,44 +1,41 @@
 import json
 import os
-from urllib.parse import parse_qs
+from fastapi import FastAPI
 
-def handler(request):
-    # get query params
-    query = parse_qs(request.query_string.decode())
+app = FastAPI()
 
-    type_ = query.get("type", [None])[0]
-    name = query.get("name", [None])[0]
+# load data once (IMPORTANT for performance)
+DATA_CACHE = {}
 
-    if not type_ or not name:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "type and name are required"})
-        }
+def load_file(type_):
+    if type_ in DATA_CACHE:
+        return DATA_CACHE[type_]
 
     file_path = os.path.join("Predictions", f"{type_}.json")
 
     if not os.path.exists(file_path):
-        return {
-            "statusCode": 404,
-            "body": json.dumps({"error": "type not found"})
-        }
+        return None
 
     with open(file_path, "r") as f:
-        data = json.load(f)
+        DATA_CACHE[type_] = json.load(f)
+
+    return DATA_CACHE[type_]
+
+
+@app.get("/api/prediction")
+def get_prediction(type: str, name: str):
+    data = load_file(type)
+
+    if not data:
+        return {"error": "type not found"}
 
     result = data.get(name)
 
     if not result:
-        return {
-            "statusCode": 404,
-            "body": json.dumps({"error": "name not found"})
-        }
+        return {"error": "name not found"}
 
     return {
-        "statusCode": 200,
-        "body": json.dumps({
-            "type": type_,
-            "name": name,
-            "data": result
-        })
+        "type": type,
+        "name": name,
+        "data": result
     }
