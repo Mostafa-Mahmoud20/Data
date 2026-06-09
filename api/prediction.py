@@ -2,10 +2,10 @@ import json
 import os
 from urllib.parse import parse_qs
 
-def handler(request):
+def handler(request, context=None):
 
+    # Get query params
     query = parse_qs(request.query_string.decode())
-
     name = query.get("name", [None])[0]
 
     if not name:
@@ -14,10 +14,11 @@ def handler(request):
             "body": json.dumps({"error": "name is required"})
         }
 
+    # project root
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     PRED_DIR = os.path.join(BASE_DIR, "Predictions")
 
-    # search all files
+    # search all json files
     for file in os.listdir(PRED_DIR):
         if not file.endswith(".json"):
             continue
@@ -28,6 +29,7 @@ def handler(request):
             with open(file_path, "r") as f:
                 data = json.load(f)
 
+            # match by name key
             if name in data:
                 return {
                     "statusCode": 200,
@@ -37,7 +39,7 @@ def handler(request):
                     })
                 }
 
-        except:
+        except Exception as e:
             continue
 
     return {
