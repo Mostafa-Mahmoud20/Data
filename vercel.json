@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/prediction.py": {
+      "runtime": "@vercel/python"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/prediction",
+      "dest": "api/prediction.py"
+    }
+  ]
+}
