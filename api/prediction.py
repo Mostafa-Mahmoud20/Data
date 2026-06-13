@@ -1,10 +1,16 @@
 import json
 import os
-from urllib.parse import parse_qs
 
-# IMPORTANT: Vercel gives /var/task as root
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRED_DIR = os.path.join(BASE_DIR, "Predictions")
+
+
+def cors_headers():
+    return {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+    }
 
 
 def search_all_files(name: str):
@@ -25,7 +31,7 @@ def search_all_files(name: str):
                 return {
                     "file": file,
                     "name": name,
-                    "data": data[name]
+                    "data": data[name],
                 }
 
         except Exception:
@@ -34,29 +40,29 @@ def search_all_files(name: str):
     return None
 
 
-# ✅ THIS is what Vercel calls
-def handler(request, context):
-    # get query string: ?name=AMD
-    query = parse_qs(request.get("queryStringParameters") or {})
-    name = query.get("name", [None])[0]
+def handler(request):
+    # ✅ HANDLE CORS PRE-FLIGHT
+    if request.get("method") == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": cors_headers(),
+            "body": "",
+        }
+
+    params = request.get("queryStringParameters") or {}
+    name = params.get("name")
 
     if not name:
         return {
             "statusCode": 400,
-            "headers": {
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps({"error": "missing name"})
+            "headers": cors_headers(),
+            "body": json.dumps({"error": "missing name"}),
         }
 
     result = search_all_files(name)
 
     return {
         "statusCode": 200,
-        "headers": {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET,OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        },
-        "body": json.dumps(result or {"error": "not found"})
+        "headers": cors_headers(),
+        "body": json.dumps(result or {"error": "not found"}),
     }
