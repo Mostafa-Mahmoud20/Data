@@ -2,19 +2,18 @@ import json
 import os
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 
 app = FastAPI()
 
-
+# CORS FIX (IMPORTANT)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # or specific origins like ["http://localhost:5173"]
+    allow_origins=["*"],  # or add your frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRED_DIR = os.path.join(BASE_DIR, "Predictions")
@@ -56,3 +55,7 @@ async def get_prediction(name: str = Query(...)):
         return {"error": "not found"}
 
     return result
+
+
+# ✅ THIS LINE IS REQUIRED FOR VERCEL
+handler = Mangum(app)
