@@ -1,20 +1,8 @@
 import json
 import os
-from fastapi import FastAPI, Query
-from fastapi.middleware.cors import CORSMiddleware
-from mangum import Mangum
+from urllib.parse import parse_qs
 
-app = FastAPI()
-
-# CORS FIX (IMPORTANT)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # or add your frontend domain
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# IMPORTANT: Vercel gives /var/task as root
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRED_DIR = os.path.join(BASE_DIR, "Predictions")
 
@@ -40,22 +28,35 @@ def search_all_files(name: str):
                     "data": data[name]
                 }
 
-        except Exception as e:
-            print(e)
+        except Exception:
             continue
 
     return None
 
 
-@app.get("/api/prediction")
-async def get_prediction(name: str = Query(...)):
+# ✅ THIS is what Vercel calls
+def handler(request, context):
+    # get query string: ?name=AMD
+    query = parse_qs(request.get("queryStringParameters") or {})
+    name = query.get("name", [None])[0]
+
+    if not name:
+        return {
+            "statusCode": 400,
+            "headers": {
+                "Access-Control-Allow-Origin": "*"
+            },
+            "body": json.dumps({"error": "missing name"})
+        }
+
     result = search_all_files(name)
 
-    if result is None:
-        return {"error": "not found"}
-
-    return result
-
-
-# ✅ THIS LINE IS REQUIRED FOR VERCEL
-handler = Mangum(app)
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        },
+        "body": json.dumps(result or {"error": "not found"})
+    }
